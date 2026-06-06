@@ -1,0 +1,20 @@
+{
+  "name": "volcengine-api",
+  "version": "1.0.0",
+  "description": "火山引擎API接入项目",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "node test-api.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@volcengine/openapi": "^1.36.2",
+    "axios": "^1.6.0",
+    "dotenv": "^16.3.1",
+    "express": "^5.2.1"
+  }
+}

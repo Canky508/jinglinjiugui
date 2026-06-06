@@ -1,0 +1,20 @@
+# Render 一键部署：https://render.com → New → Blueprint
+services:
+  - type: web
+    name: jinling-jiugui-api
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: VOLC_API_KEY
+        sync: false
+      - key: VOLC_VISION_MODEL_ID
+        sync: false
+      - key: VOLC_TEXT_MODEL_ID
+        sync: false
+      - key: VOLC_MODEL_ID
+        sync: false
