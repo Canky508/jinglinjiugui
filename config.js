@@ -1,2 +1,1 @@
-// 本地开发留空；部署到公网时改成你的 API 地址
-window.JINLING_API = '';
+window.JINLING_API = 'https://jinling-api.onrender.com';
