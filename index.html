@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>金灵酒鬼</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { black: '#0A0A0A', red: '#B7102A', gray: '#747878', light: '#F5F5F5', white: '#FFFFFF' }
+          },
+          fontFamily: {
+            serif: ['Playfair Display', 'Georgia', 'serif'],
+            sans: ['Inter', 'PingFang SC', 'Microsoft YaHei', 'sans-serif']
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body { -webkit-font-smoothing: antialiased; }
+    .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
+    .screen { display: none; }
+    .screen.active { display: block; }
+    .scanner-frame::before {
+      content: ''; position: absolute; inset: -2px;
+      border: 2px solid rgba(255,255,255,.1); border-radius: 22px; pointer-events: none;
+    }
+    .scan-line {
+      height: 2px; background: linear-gradient(90deg, transparent, #B7102A, transparent);
+      position: absolute; width: 100%; top: 0; animation: scan 3s linear infinite;
+    }
+    @keyframes scan { 0% { top: 0; } 50% { top: 100%; } 100% { top: 0; } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .fade-in { animation: fadeIn .3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    .step-dot { flex: 1; height: 3px; border-radius: 2px; background: rgba(255,255,255,.15); }
+    .step-dot.done { background: rgba(255,255,255,.5); }
+    .step-dot.current { background: #B7102A; }
+    .light-screen { background: #FFFFFF; color: #1A1A1A; min-height: 100vh; }
+    .attr-card { width: 76px; height: 76px; border-radius: 14px; }
+    .sticky-cta { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); width: 100%; max-width: 390px; z-index: 40; }
+    .cutout-stage {
+      background: linear-gradient(180deg, #F5F5F5 0%, #FFFFFF 100%);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .cutout-hero { object-fit: contain; filter: drop-shadow(0 16px 32px rgba(0,0,0,0.12)); }
+  </style>
+</head>
+<body class="bg-neutral-900 flex justify-center min-h-screen">
+
+<div id="app" class="w-full max-w-[390px] min-h-screen relative shadow-2xl overflow-hidden bg-black">
+
+  <!-- 顶部导航 -->
+  <header id="appHeader" class="sticky top-0 z-50 flex justify-between items-center px-5 py-4 bg-black/95 backdrop-blur border-b border-white/5">
+    <button type="button" class="text-white/70 hover:text-white" onclick="handleBack()">
+      <span class="material-symbols-outlined text-2xl" id="headerLeftIcon">menu</span>
+    </button>
+    <h1 class="font-serif text-base tracking-wide text-white/90" id="headerTitle">金灵酒鬼</h1>
+    <button type="button" class="text-white/70 hover:text-white" onclick="copyShare()">
+      <span class="material-symbols-outlined text-2xl" id="headerRightIcon">share</span>
+    </button>
+  </header>
+
+  <!-- 进度条（暗色页） -->
+  <div id="stepBarWrap" class="px-5 pt-2 flex gap-1 bg-black">
+    <div class="flex gap-1 w-full" id="stepBar"></div>
+  </div>
+
+  <!-- ===== 首页 · 拍照识酒（暗色） ===== -->
+  <div class="screen active fade-in" id="screen-upload">
+    <main class="relative flex flex-col items-center pt-4 pb-36 px-5">
+      <section class="text-center mb-8 w-full">
+        <p class="font-sans text-[11px] tracking-[0.3em] text-white/40 uppercase mb-2">Spirit Guide</p>
+        <h2 class="font-serif text-[42px] leading-tight tracking-wide text-white mb-2">金灵酒鬼</h2>
+        <p class="font-sans text-sm text-white/60 leading-relaxed">拍一瓶酒，老金帮你识酒、调酒、配菜、组局</p>
+      </section>
+
+      <div class="mb-6 relative w-full flex justify-center h-36">
+        <img id="bartenderImg" alt="老金" class="h-full object-contain opacity-90" src="" />
+      </div>
+
+      <div class="scanner-frame relative w-full max-w-[300px] aspect-[3/4] rounded-[20px] overflow-hidden bg-white/5 group transition-transform duration-300" id="scannerFrame">
+        <div class="absolute inset-0 bg-neutral-900/40" id="scannerInner">
+          <img id="previewImg" class="w-full h-full object-cover opacity-50 grayscale transition-all duration-500 hidden" alt="酒瓶预览" />
+          <div id="scannerPlaceholder" class="w-full h-full flex flex-col items-center justify-center text-white/40">
+            <span class="material-symbols-outlined text-5xl mb-2">photo_camera</span>
+            <p class="text-xs tracking-wider">对准酒标拍摄</p>
+          </div>
+        </div>
+        <div class="absolute inset-0 flex items-center justify-center pointer-events-none" id="scannerFocus">
+          <div class="w-14 h-14 rounded-full border border-white/20 animate-ping"></div>
+        </div>
+        <div class="absolute top-5 left-5 w-7 h-7 border-t-2 border-l-2 border-brand-red"></div>
+        <div class="absolute top-5 right-5 w-7 h-7 border-t-2 border-r-2 border-brand-red"></div>
+        <div class="absolute bottom-5 left-5 w-7 h-7 border-b-2 border-l-2 border-brand-red"></div>
+        <div class="absolute bottom-5 right-5 w-7 h-7 border-b-2 border-r-2 border-brand-red"></div>
+        <div class="scan-line" id="scanLine"></div>
+      </div>
+
+      <p class="mt-4 text-[11px] text-white/40 tracking-wider text-center max-w-[240px]">将酒瓶酒标置于框内，即可识酒</p>
+      <p id="recognizeMode" class="mt-2 text-xs text-emerald-400/80 hidden"></p>
+
+      <div class="mt-6 flex gap-3 w-full max-w-[300px]">
+        <button type="button" onclick="openCamera()" class="flex-1 bg-white text-black py-3 rounded-full font-sans text-sm font-semibold active:scale-95 transition-transform">拍照识酒</button>
+        <button type="button" onclick="openAlbum()" class="flex-1 border border-white/30 text-white py-3 rounded-full font-sans text-sm active:scale-95 transition-transform">相册选图</button>
+      </div>
+
+      <section class="mt-10 w-full">
+        <div class="flex justify-between items-end mb-4">
+          <h3 class="font-serif text-lg text-white">最近识别</h3>
+          <span class="text-[10px] text-brand-red tracking-widest uppercase border-b border-brand-red pb-0.5">示例酒款</span>
+        </div>
+        <div class="flex gap-4 overflow-x-auto pb-2 no-scrollbar" id="sampleList"></div>
+      </section>
+
+      <p class="mt-8 text-[10px] text-white/30 text-center leading-relaxed">参考价格仅供参考 · 适量饮酒 · 未成年人禁止饮酒</p>
+    </main>
+
+    <div class="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-[340px] px-5 z-40">
+      <button type="button" onclick="startRecognize()" class="w-full bg-white text-black pl-6 pr-2 py-4 rounded-full flex items-center justify-between active:scale-[0.98] transition-transform shadow-[0_20px_50px_rgba(255,255,255,0.08)]">
+        <span class="font-sans text-base font-semibold tracking-widest">开始识酒</span>
+        <div class="bg-black rounded-full p-2.5 flex items-center justify-center">
+          <span class="material-symbols-outlined text-white text-lg">arrow_forward</span>
+        </div>
+      </button>
+    </div>
+  </div>
+
+  <!-- ===== 加载页（暗色） ===== -->
+  <div class="screen" id="screen-loading">
+    <div class="flex flex-col items-center justify-center min-h-[70vh] px-8 text-center">
+      <div class="relative w-48 h-48 mb-8 flex items-center justify-center">
+        <div class="absolute inset-0 rounded-full border-2 border-white/10"></div>
+        <div class="absolute inset-0 rounded-full border-2 border-transparent border-t-brand-red animate-[spin_1.2s_linear_infinite]"></div>
+        <span class="material-symbols-outlined text-5xl text-white/30">wine_bar</span>
+      </div>
+      <p id="loadingText" class="font-sans text-white/80 text-base mb-2">老金正在瞅这瓶酒...</p>
+      <div class="flex gap-2 mt-4" id="loadingDots">
+        <div class="w-1.5 h-1.5 rounded-full bg-brand-red"></div>
+        <div class="w-1.5 h-1.5 rounded-full bg-white/20"></div>
+        <div class="w-1.5 h-1.5 rounded-full bg-white/20"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 识酒结果（亮色） ===== -->
+  <div class="screen light-screen" id="screen-wine">
+    <div class="px-5 pt-2 pb-32 fade-in">
+      <button type="button" onclick="goTo('upload')" class="text-sm text-neutral-500 mb-4 flex items-center gap-1">
+        <span class="material-symbols-outlined text-lg">arrow_back</span> 重新识酒
+      </button>
+
+      <div class="relative cutout-stage rounded-[20px] py-10 mb-2 mx-0 min-h-[240px]">
+        <p class="absolute font-serif text-6xl text-black/[0.03] rotate-90 whitespace-nowrap select-none pointer-events-none" id="wineDecorText">Single Malt</p>
+        <img id="wineBottleImg" src="" alt="酒瓶" class="cutout-hero h-56 max-w-[220px] relative z-10" />
+      </div>
+
+      <h2 class="font-serif text-2xl text-center text-black leading-tight mb-3" id="wineName">—</h2>
+      <div class="flex flex-wrap justify-center gap-2 mb-6" id="wineTags"></div>
+
+      <div class="flex justify-center gap-2.5 mb-6 flex-wrap" id="wineAttrCards"></div>
+
+      <div class="bg-brand-light rounded-2xl p-4 mb-3 text-center">
+        <p class="text-[10px] text-neutral-500 mb-1">参考价格</p>
+        <p class="font-serif text-2xl text-brand-red" id="priceRange">—</p>
+        <p class="text-[11px] text-neutral-400 mt-1" id="priceNote"></p>
+      </div>
+
+      <div class="bg-black text-white rounded-2xl p-4 mb-3 border-l-4 border-brand-red">
+        <p class="text-[11px] tracking-widest text-white/50 uppercase mb-2">老金说</p>
+        <p class="font-sans text-sm leading-relaxed" id="bartenderTake"></p>
+      </div>
+
+      <div class="bg-white rounded-2xl p-4 mb-3 shadow-[0_4px_16px_rgba(0,0,0,0.06)] border border-neutral-100">
+        <p class="font-serif text-sm mb-2">口感 <span class="text-neutral-400 font-sans text-xs">TASTE</span></p>
+        <p class="font-sans text-sm text-neutral-700 leading-relaxed" id="tasteSummary"></p>
+      </div>
+
+      <div class="bg-white rounded-2xl p-4 mb-3 shadow-[0_4px_16px_rgba(0,0,0,0.06)] border border-neutral-100">
+        <p class="font-serif text-sm mb-2">气味 <span class="text-neutral-400 font-sans text-xs">AROMA</span></p>
+        <p class="font-sans text-sm text-neutral-700 leading-relaxed" id="aromaSummary"></p>
+      </div>
+
+      <details class="bg-neutral-50 rounded-2xl p-4">
+        <summary class="font-sans text-sm font-medium cursor-pointer">识酒依据</summary>
+        <div class="mt-3 space-y-1 text-xs text-neutral-500" id="evidenceList"></div>
+      </details>
+    </div>
+
+    <div class="sticky-cta px-5">
+      <div class="bg-white rounded-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.08)] p-4 flex items-center justify-between border border-neutral-100">
+        <div>
+          <p class="text-xs text-neutral-400">下一步</p>
+          <p class="font-sans font-semibold text-sm">调酒方案</p>
+        </div>
+        <button type="button" onclick="goToCocktail()" class="bg-brand-red text-white px-6 py-3 rounded-full font-sans text-sm font-semibold active:scale-95 transition-transform">生成方案</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 调酒方案（亮色） ===== -->
+  <div class="screen light-screen" id="screen-cocktail">
+    <div class="px-5 pt-2 pb-32 fade-in">
+      <button type="button" onclick="goTo('wine')" class="text-sm text-neutral-500 mb-4 flex items-center gap-1">
+        <span class="material-symbols-outlined text-lg">arrow_back</span> 识酒结果
+      </button>
+
+      <h2 class="font-serif text-2xl text-black mb-1" id="planName">调酒方案</h2>
+      <p class="font-sans text-xs text-neutral-400 mb-4" id="planMeta"></p>
+      <div class="relative w-full cutout-stage rounded-[20px] overflow-hidden mb-5 min-h-[220px] py-6">
+        <img id="cocktailHeroImg" src="" alt="调酒方案" class="cutout-hero h-48 max-w-[85%]" />
+      </div>
+      <p class="font-sans text-sm text-neutral-500 leading-relaxed mb-6" id="flavorNote"></p>
+
+      <div class="bg-white rounded-[20px] p-5 mb-4 shadow-[0_8px_24px_rgba(0,0,0,0.08)]">
+        <div class="flex justify-between items-center mb-4">
+          <p class="font-serif text-base">材料清单</p>
+          <p class="font-serif text-xl text-brand-red" id="totalCost"></p>
+        </div>
+        <div id="materialsList" class="divide-y divide-neutral-100"></div>
+      </div>
+
+      <div class="bg-white rounded-[20px] p-5 mb-4 shadow-[0_8px_24px_rgba(0,0,0,0.08)]">
+        <p class="font-serif text-base mb-4">调制步骤</p>
+        <ol id="stepsList" class="space-y-4"></ol>
+      </div>
+
+      <div class="flex flex-wrap gap-2" id="toolsList"></div>
+    </div>
+
+    <div class="sticky-cta px-5">
+      <div class="bg-black rounded-t-2xl p-4 flex items-center justify-between">
+        <div>
+          <p class="text-xs text-white/50" id="totalCostBar"></p>
+          <p class="text-white font-semibold text-sm">看下酒菜</p>
+        </div>
+        <button type="button" onclick="goToFood()" class="bg-brand-red text-white px-5 py-3 rounded-full font-sans text-sm font-semibold">继续</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 下酒菜（亮色） ===== -->
+  <div class="screen light-screen" id="screen-food">
+    <div class="px-5 pt-2 pb-36 fade-in">
+      <button type="button" onclick="goTo('cocktail')" class="text-sm text-neutral-500 mb-4 flex items-center gap-1">
+        <span class="material-symbols-outlined text-lg">arrow_back</span> 调酒方案
+      </button>
+
+      <h2 class="font-serif text-3xl text-black mb-1">下酒菜</h2>
+      <p class="font-sans text-sm text-neutral-500 mb-5">从居家小食到精致酒局，老金给你搭配好了</p>
+
+      <div class="flex gap-2 mb-5" id="tierTabs"></div>
+      <div id="dishList" class="space-y-3 mb-6"></div>
+
+      <div class="bg-black rounded-[20px] p-5">
+        <p class="font-serif text-white text-base mb-3">我想吃这道菜</p>
+        <input class="w-full bg-neutral-900 border border-white/15 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 mb-3 focus:outline-none focus:border-brand-red/50" id="customDish" placeholder="麻辣小龙虾" value="麻辣小龙虾" />
+        <button type="button" onclick="analyzeDish()" class="w-full bg-brand-red text-white py-3 rounded-full font-sans text-sm font-semibold">让老金点评搭配</button>
+        <div id="dishAnalysis" class="mt-4"></div>
+      </div>
+    </div>
+
+    <div class="sticky-cta px-5">
+      <div class="bg-white rounded-2xl shadow-lg p-4 flex items-center justify-between border border-neutral-100">
+        <p class="font-sans font-semibold text-sm">生成酒局</p>
+        <button type="button" onclick="goToShare()" class="bg-brand-red text-white px-5 py-3 rounded-full font-sans text-sm font-semibold">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 酒局分享（浅灰底） ===== -->
+  <div class="screen bg-neutral-100 min-h-screen" id="screen-share">
+    <div class="px-5 pt-2 pb-32 fade-in">
+      <button type="button" onclick="goTo('food')" class="text-sm text-neutral-500 mb-4 flex items-center gap-1">
+        <span class="material-symbols-outlined text-lg">arrow_back</span> 下酒菜
+      </button>
+
+      <h2 class="font-serif text-3xl text-black mb-1">酒局邀请</h2>
+      <p class="font-sans text-sm text-neutral-500 mb-5">分享给好友，一起改酒单和菜单</p>
+
+      <div class="bg-white rounded-3xl p-6 shadow-[0_16px_40px_rgba(0,0,0,0.1)] mb-4" id="sharePreview"></div>
+
+      <div class="flex gap-3 mb-4">
+        <button type="button" onclick="copyShare()" class="flex-1 border border-black py-3 rounded-2xl font-sans text-sm font-medium">复制邀请</button>
+        <button type="button" onclick="copyShare()" class="flex-1 bg-black text-white py-3 rounded-2xl font-sans text-sm font-medium">分享给好友</button>
+      </div>
+
+      <div class="bg-neutral-200/60 rounded-xl px-4 py-3 text-center font-mono text-xs text-neutral-500 mb-4">jinling.bar/party/demo123</div>
+
+      <div class="bg-white rounded-[20px] p-4 shadow-sm">
+        <p class="font-serif text-base mb-1">一起改酒单</p>
+        <p class="text-xs text-neutral-400 mb-3">协作编辑 Demo</p>
+        <div class="border border-dashed border-neutral-300 rounded-xl p-3 min-h-[72px] text-sm outline-none" id="collabNote" contenteditable="true">今晚 8 点，我带酒，你带小龙虾改良版</div>
+        <p class="text-xs text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2 mt-3">✓ 2 位好友已加入协作</p>
+      </div>
+    </div>
+
+    <div class="sticky-cta px-5">
+      <div class="bg-black rounded-t-2xl p-4 flex items-center justify-between">
+        <p class="text-white font-semibold text-sm">附近酒馆</p>
+        <button type="button" onclick="goToBars()" class="bg-brand-red text-white px-5 py-3 rounded-full font-sans text-sm font-semibold">去看看</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 附近酒馆（亮色 · 设计图规范） ===== -->
+  <div class="screen light-screen" id="screen-bars">
+    <div class="px-5 pt-2 pb-32 fade-in">
+      <button type="button" onclick="goTo('share')" class="text-sm text-neutral-500 mb-4 flex items-center gap-1">
+        <span class="material-symbols-outlined text-lg">arrow_back</span> 酒局方案
+      </button>
+
+      <h2 class="font-serif text-3xl text-black text-center mb-1">附近酒馆</h2>
+      <p class="font-sans text-sm text-neutral-500 text-center mb-5">不想在家调？老金帮你找合适的店</p>
+
+      <div class="bg-neutral-100 rounded-xl h-11 px-3.5 flex items-center justify-between mb-4 text-sm">
+        <span class="flex items-center gap-2 text-neutral-500">
+          <span class="material-symbols-outlined text-base text-black">location_on</span> 基于当前位置
+        </span>
+        <button type="button" class="text-brand-red text-xs font-medium">刷新</button>
+      </div>
+
+      <div class="h-[100px] rounded-2xl bg-white border border-neutral-100 mb-4 relative overflow-hidden">
+        <svg class="absolute inset-0 w-full h-full text-neutral-200" viewBox="0 0 320 100" preserveAspectRatio="none">
+          <path d="M0 50 H320 M40 0 V100 M120 20 H280 M200 60 H320" stroke="currentColor" stroke-width="1" fill="none"/>
+          <path d="M80 30 Q160 70 240 40" stroke="currentColor" stroke-width="1" fill="none"/>
+        </svg>
+        <div class="absolute w-2.5 h-2.5 bg-brand-red rounded-full top-7 left-10"></div>
+        <div class="absolute w-2.5 h-2.5 bg-brand-red rounded-full top-12 right-14"></div>
+        <div class="absolute w-2.5 h-2.5 bg-brand-red rounded-full bottom-7 left-1/2"></div>
+      </div>
+
+      <div id="barsList" class="space-y-3.5"></div>
+      <p class="text-[11px] text-neutral-400 text-center mt-6">Demo 数据 · 正式版接入真实地图</p>
+    </div>
+
+    <div class="sticky-cta px-5">
+      <div class="bg-black rounded-t-2xl p-4 flex items-center justify-between">
+        <div>
+          <p class="text-xs text-white/50">找到 3 家酒馆</p>
+          <p class="text-white font-semibold text-sm">完成体验</p>
+        </div>
+        <button type="button" onclick="finishDemo()" class="bg-brand-red text-white px-5 py-3 rounded-full font-sans text-sm font-semibold">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 底部导航 -->
+  <nav id="bottomNav" class="fixed bottom-0 w-full max-w-[390px] z-50 border-t border-white/10 bg-black/90 backdrop-blur-md flex justify-around items-center h-20">
+    <button type="button" class="nav-item flex flex-col items-center text-white/40" data-nav="upload" onclick="navTo('upload')">
+      <span class="nav-icon material-symbols-outlined text-xl mb-0.5">home</span>
+      <span class="nav-label text-[10px]">主页</span>
+    </button>
+    <button type="button" class="nav-item flex flex-col items-center text-brand-red" data-nav="wine" onclick="navTo('wine')">
+      <span class="nav-icon material-symbols-outlined text-xl mb-0.5" style="font-variation-settings:'FILL' 1">document_scanner</span>
+      <span class="nav-label text-[10px] font-semibold">识别</span>
+    </button>
+    <button type="button" class="nav-item flex flex-col items-center text-white/40" data-nav="cocktail" onclick="navTo('cocktail')">
+      <span class="nav-icon material-symbols-outlined text-xl mb-0.5">local_bar</span>
+      <span class="nav-label text-[10px]">调酒</span>
+    </button>
+    <button type="button" class="nav-item flex flex-col items-center text-white/40" data-nav="share" onclick="navTo('share')">
+      <span class="nav-icon material-symbols-outlined text-xl mb-0.5">group</span>
+      <span class="nav-label text-[10px]">酒局</span>
+    </button>
+    <button type="button" class="nav-item flex flex-col items-center text-white/40" data-nav="bars" onclick="navTo('bars')">
+      <span class="nav-icon material-symbols-outlined text-xl mb-0.5">location_on</span>
+      <span class="nav-label text-[10px]">酒吧</span>
+    </button>
+  </nav>
+
+  <input type="file" id="cameraInput" accept="image/*" capture="environment" hidden />
+  <input type="file" id="albumInput" accept="image/*" hidden />
+</div>
+
+<script src="config.js"></script>
+<script>
+let IMG_BASE = 'assets/';
+let IMG = {};
+let COCKTAIL_HERO = {};
+let SAMPLES = [];
+
+const IMG_PATHS = ['assets/', '../ui设计图/images/'];
+
+function detectImgBase() {
+  return 'assets/';
+}
+
+function imgPath(name, base) {
+  return (base || IMG_BASE) + name;
+}
+
+function imgFallback(el, name) {
+  const tried = Number(el.dataset.fallback || 0);
+  if (tried >= IMG_PATHS.length) return;
+  el.dataset.fallback = String(tried + 1);
+  el.src = imgPath(name, IMG_PATHS[tried]);
+}
+
+function buildImgConfig() {
+  IMG_BASE = detectImgBase();
+  IMG = {
+    party: imgPath('酒馆环境图4.png'),
+    cocktailAmber: imgPath('琥珀暖冬.png'),
+    barWhiskyInterior: imgPath('酒馆环境图1.png'),
+    barBistroInterior: imgPath('酒馆环境图2.png'),
+    barLoungeInterior: imgPath('酒馆环境图3.png'),
+    barLoungeFallback: imgPath('bar-lounge.jpg'),
+    bartender: imgPath('麦卡伦.png'),
+    whisky: imgPath('麦卡伦.png'),
+    red: imgPath('红酒.png'),
+    baijiu: imgPath('白酒.png'),
+    whiskyCutout: imgPath('麦卡伦.png'),
+    redCutout: imgPath('红酒.png'),
+    baijiuCutout: imgPath('白酒.png'),
+    dishPeanuts: imgPath('酒鬼花生.png'),
+    dishBeef: imgPath('卤切牛肉.png')
+  };
+  COCKTAIL_HERO = {
+    '琥珀暖冬': IMG.cocktailAmber,
+    '红酒桑格利亚': IMG.redCutout,
+    '纯饮经典局': IMG.baijiuCutout
+  };
+  SAMPLES = [
+    { id: 'whisky', name: '麦卡伦12年', label: '威士忌', decor: 'Sherry Oak', image: IMG.whisky, cutout: IMG.whiskyCutout },
+    { id: 'red', name: '波尔多红酒', label: '红酒', decor: 'Bordeaux', image: IMG.red, cutout: IMG.redCutout },
+    { id: 'baijiu', name: '茅台飞天', label: '白酒', decor: 'Maotai', image: IMG.baijiu, cutout: IMG.baijiuCutout }
+  ];
+}
+
+const MOCK = {
+  whisky: {
+    wine: {
+      wineName: '麦卡伦 12 年双雪莉桶', wineType: '单一麦芽威士忌', brand: 'Macallan',
+      origin: '苏格兰 · 斯佩塞', vintage: '12 年', abv: '40%', color: '琥珀色',
+      taste: { summary: '入口圆润，雪莉桶果干甜感明显，酒精感柔和，醇厚饱满，余韵带木香。' },
+      aroma: { primary: ['葡萄干','香草','柑橘皮'], summary: '以雪莉桶果香为主，层次温润，无烟熏泥煤感。' },
+      referencePrice: { min: 480, max: 650, note: '国内市场参考区间，不同渠道会有浮动' },
+      servingTips: '纯饮或加一块大冰球；推荐古典杯。', confidence: 'high',
+      visibleEvidence: ['酒标可见 Macallan 品牌', '酒体呈琥珀色', '标签标注 12 Years Old'],
+      bartenderTake: '瞅这琥珀色，雪莉桶养的没跑了——果干甜、入口柔，慢品才有意思。听叔一句：这瓶别兑可乐，糟蹋东西。'
+    },
+    cocktail: {
+      planName: '琥珀暖冬', planSubtitle: '叔给你调的，冬天喝一口心里暖和', style: '鸡尾酒', difficulty: '入门',
+      materials: [
+        { name: '麦卡伦 12 年', amount: '45ml', unitPrice: 38, subtotal: 38 },
+        { name: '甜味美思', amount: '15ml', unitPrice: 2, subtotal: 2 },
+        { name: '安哥斯图拉苦精', amount: '2 dash', unitPrice: 1, subtotal: 1 },
+        { name: '橙皮', amount: '1 片', unitPrice: 1, subtotal: 1 }
+      ],
+      tools: ['调酒杯','吧勺','古典杯','冰块'],
+      steps: ['古典杯里丢一块大方冰，先让它凉着。','调酒杯倒入威士忌和甜味美思，加冰搅拌15秒——别偷懒。','滤进古典杯，滴2 dash苦精。','橙皮挤油再扔进去，香气一出来齐活。'],
+      totalCost: 42,
+      flavorNote: '麦卡伦的果干甜留着，甜味美思让它更圆润，苦精收尾利落——像冬天裹了条薄毯子，暖但不闷。'
+    },
+    tiers: {
+      casual: { label: '平民', dishes: [
+        { name: '盐焗花生米', reason: '别嫌土，居家局神器。花生油的香气托住威士忌的甜，叔能这样坐一晚上。', calories: '约280kcal', cost: '¥12', recipe: [] },
+        { name: '卤牛肉切片', reason: '咸鲜提层次，配威士忌刚刚好。', calories: '约320kcal', cost: '¥35', recipe: [] }
+      ]},
+      lifestyle: { label: '精致', dishes: [
+        { name: '芝士坚果拼盘', reason: '奶脂柔化酒精刺激，周末小聚刚刚好。', calories: '约450kcal', cost: '¥68', recipe: [] },
+        { name: '烟熏三文鱼', reason: '烟熏感跟橡木桶香呼应，仪式感有了。', calories: '约280kcal', cost: '¥58', recipe: [] }
+      ]},
+      premium: { label: '高端', dishes: [
+        { name: '和牛炙烤', reason: '油脂丰富，配得上这瓶麦卡伦。', calories: '约520kcal', cost: '¥198', recipe: [] },
+        { name: '法式鹅肝', reason: '细腻脂香与雪莉甜感绝配，庆祝局首选。', calories: '约380kcal', cost: '¥168', recipe: [] }
+      ]}
+    },
+    dishAnalysis: {
+      '麻辣小龙虾': {
+        rating: '可以', ratingClass: 'ok',
+        analysis: '麻辣小龙虾？热闹局行，但麦卡伦那点果香全让你辣没了——实在想吃，叔教你改蒜香版。',
+        tastePairing: '辣度与酒精双重刺激，建议威士忌加冰或冰镇。',
+        utility: '油脂丰富可解辣，但虾味鲜香会抢酒香。',
+        calories: '约450-600kcal/份',
+        improvedRecipe: { name: '蒜香黄油小龙虾（老金改良版）', steps: ['麻辣底料减半，换蒜瓣黄油','出锅挤柠檬汁','配冰镇威士忌'] },
+        swapSuggestion: '更推荐芝士拼盘或卤味，更能衬托麦卡伦果甜。'
+      }
+    }
+  },
+  red: {
+    wine: {
+      wineName: '拉菲传奇 波尔多红葡萄酒', wineType: '干红葡萄酒', brand: 'Légende R',
+      origin: '法国 · 波尔多', vintage: '2020', abv: '13.5%', color: '深宝石红',
+      taste: { summary: '中等酒体，单宁柔顺，黑色水果风味，酸度平衡。' },
+      aroma: { primary: ['黑醋栗','樱桃'], summary: '典型波尔多果香，带淡淡香草桶香。' },
+      referencePrice: { min: 180, max: 280, note: '电商渠道参考价' },
+      confidence: 'high', visibleEvidence: ['酒标 Bordeaux 字样','深红色酒体','2020 年份'],
+      bartenderTake: '波尔多入门款，果香干净、单宁不凶——新手喝红酒，从这瓶开始没错。'
+    },
+    cocktail: {
+      planName: '红酒桑格利亚', planSubtitle: '夏天喝更爽快', style: '鸡尾酒', difficulty: '入门',
+      materials: [
+        { name: '波尔多红酒', amount: '150ml', unitPrice: 25, subtotal: 25 },
+        { name: '橙片', amount: '2片', unitPrice: 2, subtotal: 2 },
+        { name: '苏打水', amount: '50ml', unitPrice: 2, subtotal: 2 },
+        { name: '蜂蜜', amount: '10ml', unitPrice: 1, subtotal: 1 }
+      ],
+      tools: ['大水壶','长饮杯','冰块'],
+      steps: ['壶中倒入红酒、蜂蜜搅匀。','加橙片和冰块。','倒入苏打水轻搅。','长饮杯盛装。'],
+      totalCost: 30, flavorNote: '果香更活泼，单宁涩感被气泡带走——派对友好款。'
+    },
+    tiers: {
+      casual: { label: '平民', dishes: [{ name: '番茄炒蛋', reason: '酸甜柔和单宁，家常菜里的红酒搭档。', calories: '约220kcal', cost: '¥15', recipe: [] }]},
+      lifestyle: { label: '精致', dishes: [{ name: '意式火腿蜜瓜', reason: '咸甜经典，红酒入门教科书搭配。', calories: '约300kcal', cost: '¥78', recipe: [] }]},
+      premium: { label: '高端', dishes: [{ name: '慢烤羊排', reason: '油脂与单宁中和，庆祝局撑得住场面。', calories: '约580kcal', cost: '¥228', recipe: [] }]}
+    },
+    dishAnalysis: {
+      '麻辣小龙虾': {
+        rating: '建议换一道', ratingClass: 'bad',
+        analysis: '叔直说了：麻辣跟红酒单宁犯冲，涩感会被放大，换道菜吧。',
+        tastePairing: '重辣重油不适合干红。', utility: '解腻但破坏酒香。', calories: '约500kcal',
+        improvedRecipe: { name: '蒜蓉黄油虾', steps: ['去麻辣','蒜香黄油','配柠檬'] },
+        swapSuggestion: '换意式火腿蜜瓜，稳。'
+      }
+    }
+  },
+  baijiu: {
+    wine: {
+      wineName: '贵州茅台 飞天 53度', wineType: '酱香型白酒', brand: '茅台',
+      origin: '中国 · 贵州茅台镇', vintage: '2023', abv: '53%', color: '透明微黄',
+      taste: { summary: '酱香突出，酒体醇厚，空杯留香持久，刺激感较强。' },
+      aroma: { primary: ['酱香','曲香','粮香'], summary: '典型茅香风格，复合香气浓郁。' },
+      referencePrice: { min: 2400, max: 2800, note: '渠道差异大，仅供参考' },
+      confidence: 'high', visibleEvidence: ['飞天茅台包装','53% vol','酱香型标识'],
+      bartenderTake: '酱香标杆，闻香就知道对不对路。这种酒，纯饮小杯慢品，别整那些花活儿。'
+    },
+    cocktail: {
+      planName: '纯饮经典局', planSubtitle: '茅台就该这么喝', style: '纯饮', difficulty: '入门',
+      materials: [{ name: '茅台飞天', amount: '30ml', unitPrice: 120, subtotal: 120 }],
+      tools: ['小酒杯','分酒器'],
+      steps: ['分酒器斟酒。','小杯七分满。','先闻香再小口品。','配温凉下酒菜慢饮。'],
+      totalCost: 120, flavorNote: '酱香型白酒建议纯饮，调配是暴殄天物——叔说的。'
+    },
+    tiers: {
+      casual: { label: '平民', dishes: [{ name: '凉拌黄瓜', reason: '清爽解腻，烈酒必备凉菜。', calories: '约80kcal', cost: '¥8', recipe: [] }]},
+      lifestyle: { label: '精致', dishes: [{ name: '白切鸡', reason: '鲜香不抢酒香，粤菜酒局经典。', calories: '约350kcal', cost: '¥48', recipe: [] }]},
+      premium: { label: '高端', dishes: [{ name: '清蒸石斑鱼', reason: '鲜味与酱香相得益彰，商务局有面子。', calories: '约400kcal', cost: '¥288', recipe: [] }]}
+    },
+    dishAnalysis: {
+      '麻辣小龙虾': {
+        rating: '强烈推荐', ratingClass: 'good',
+        analysis: '酱香白酒配麻辣？中式酒局经典组合，叔盖章认可。',
+        tastePairing: '茅台酱香能穿透麻辣，越吃越香。', utility: '解腻提香。', calories: '约550kcal',
+        improvedRecipe: { name: '十三香小龙虾', steps: ['中等辣度','加蒜蓉','配温凉茅台'] },
+        swapSuggestion: '卤味拼盘也靠谱。'
+      }
+    }
+  }
+};
+
+function getBars() {
+  return [
+    {
+      name: '琥珀威士忌吧', distance: '1.2km', avgPrice: '¥128/人', rating: 4.7,
+      specialty: '单一麦芽威士忌吧',
+      reason: '麦卡伦现货齐全，吧台氛围专业，懒得在家折腾就来这儿，叔认这家。',
+      interior: IMG.barWhiskyInterior,
+      imgFile: '酒馆环境图1.png'
+    },
+    {
+      name: '半酌小馆', distance: '2.5km', avgPrice: '¥88/人', rating: 4.5,
+      specialty: '餐酒搭配小馆',
+      reason: '暖光木质内饰，芝士拼盘和烟熏小食都有，配果香威士忌刚好。',
+      interior: IMG.barBistroInterior,
+      imgFile: '酒馆环境图2.png'
+    },
+    {
+      name: '金夜酒廊', distance: '3.8km', avgPrice: '¥158/人', rating: 4.6,
+      specialty: '鸡尾酒与烈酒',
+      reason: '深色酒廊环境，调酒师手艺稳，不想动手直接点经典鸡尾酒。',
+      interior: IMG.barLoungeInterior,
+      imgFile: '酒馆环境图3.png',
+      imgFallback: 'bar-lounge.jpg'
+    }
+  ];
+}
+
+const STEPS = ['upload','wine','cocktail','food','share','bars'];
+const DARK_SCREENS = ['upload','loading'];
+const params = new URLSearchParams(location.search);
+let API_BASE = (params.get('api') || window.JINLING_API || '').replace(/\/$/, '');
+
+let currentStep = 0;
+let selectedSample = 'whisky';
+let uploadedImage = null;
+let useRealAI = false;
+let apiOnline = false;
+let sessionData = null;
+let currentTier = 'casual';
+
+async function resolveApiBase() {
+  if (API_BASE) return API_BASE;
+  // 公网部署：config.js 已配置 https:// 则直接使用
+  if (window.JINLING_API) {
+    API_BASE = window.JINLING_API.replace(/\/$/, '');
+    return API_BASE;
+  }
+  const pageHost = location.hostname || 'localhost';
+  const hosts = (pageHost === 'localhost' || pageHost === '127.0.0.1')
+    ? ['localhost']
+    : [pageHost, 'localhost'];
+  for (const host of hosts) {
+    for (const port of [3001, 3000, 3002]) {
+      try {
+        const base = `http://${host}:${port}`;
+        const res = await fetch(`${base}/api/health`, { signal: AbortSignal.timeout(2500) });
+        const data = await res.json();
+        if (res.ok && data.ok && data.service === 'jinling-jiugui-api') {
+          API_BASE = base;
+          return base;
+        }
+      } catch {}
+    }
+  }
+  API_BASE = pageHost === 'localhost' ? 'http://localhost:3001' : `http://${pageHost}:3001`;
+  return API_BASE;
+}
+
+async function checkApiHealth() {
+  try {
+    await resolveApiBase();
+    const res = await fetch(`${API_BASE}/api/health`, { signal: AbortSignal.timeout(4000) });
+    const data = await res.json();
+    apiOnline = res.ok && data.ok;
+    return data;
+  } catch {
+    apiOnline = false;
+    return null;
+  }
+}
+
+async function apiFetch(path, options = {}, timeoutMs = 120000) {
+  await resolveApiBase();
+  return fetch(`${API_BASE}${path}`, {
+    ...options,
+    signal: AbortSignal.timeout(timeoutMs)
+  });
+}
+
+function updateApiStatus(extra) {
+  const el = document.getElementById('recognizeMode');
+  if (!el) return;
+  if (extra) {
+    el.textContent = extra;
+    el.classList.remove('hidden');
+    return;
+  }
+  if (apiOnline) {
+    el.textContent = '✓ AI 识酒服务已连接，拍照或选示例均可真实识别';
+    el.className = 'mt-2 text-xs text-emerald-400/80';
+  } else {
+    el.textContent = '○ AI 未连接，将使用示例数据（启动 volcengine-api 后刷新）';
+    el.className = 'mt-2 text-xs text-amber-400/80';
+  }
+  el.classList.remove('hidden');
+}
+
+function inferSampleIdFromWine(wine) {
+  const t = `${wine?.wineType || ''} ${wine?.wineName || ''} ${wine?.brand || ''}`;
+  if (/威士忌|whisky|麦芽/i.test(t)) return 'whisky';
+  if (/红|葡萄酒|wine|波尔多/i.test(t)) return 'red';
+  if (/白|酱香|白酒|茅台/i.test(t)) return 'baijiu';
+  return selectedSample || 'whisky';
+}
+
+function loadImageElement(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+async function compressImageForApi(src, maxEdge = 960, quality = 0.75) {
+  const img = await loadImageElement(src);
+  let { width, height } = img;
+  const scale = Math.min(1, maxEdge / Math.max(width, height));
+  width = Math.max(1, Math.round(width * scale));
+  height = Math.max(1, Math.round(height * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+  return canvas.toDataURL('image/jpeg', quality);
+}
+
+async function getImageForRecognition() {
+  if (uploadedImage) return compressImageForApi(uploadedImage);
+  if (selectedSample) return compressImageForApi(getSampleImage(selectedSample));
+  throw new Error('请先拍照或选择示例酒款');
+}
+
+async function recognizeWithAI(imageBase64) {
+  const wineRes = await apiFetch('/api/recognize-wine', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ imageBase64 })
+  });
+  const wineData = await wineRes.json();
+  if (!wineRes.ok) throw new Error(wineData.error || '识酒 API 失败');
+  return wineData.wine;
+}
+
+async function generatePlanWithAI(wine) {
+  const planRes = await apiFetch('/api/generate-plan', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ wine })
+  });
+  const planData = await planRes.json();
+  if (!planRes.ok) throw new Error(planData.error || '方案 API 失败');
+  return planData;
+}
+
+async function analyzeDishWithAI(dishName) {
+  const res = await apiFetch('/api/analyze-dish', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      wine: getData().wine,
+      cocktail: getData().cocktail,
+      dishName
+    })
+  }, 90000);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || '菜品点评失败');
+  return data.analysis;
+}
+
+async function init() {
+  buildImgConfig();
+  const bartenderEl = document.getElementById('bartenderImg');
+  if (bartenderEl) {
+    bartenderEl.src = IMG.bartender;
+    bartenderEl.onerror = function() { this.style.display = 'none'; };
+  }
+  renderStepBar();
+  renderSamples();
+  showScannerPreview(getSampleImage(selectedSample), 'sample');
+  document.getElementById('cameraInput').onchange = handleImageFile;
+  document.getElementById('albumInput').onchange = handleImageFile;
+  updateChrome('upload');
+  await checkApiHealth();
+  const def = SAMPLES.find(s => s.id === selectedSample);
+  if (def) updateApiStatus(apiOnline ? `✓ 已选示例：${def.name} · AI 已连接` : `✓ 已选示例：${def.name} · 离线 Mock`);
+}
+
+function getSampleImage(id) {
+  return SAMPLES.find(s => s.id === id)?.image || SAMPLES[0].image;
+}
+
+function getPreviewImageUrl() {
+  if (uploadedImage) return uploadedImage;
+  return getSampleImage(selectedSample || 'whisky');
+}
+
+function getWineCutoutUrl() {
+  const cutouts = {
+    whisky: IMG.whiskyCutout,
+    red: IMG.redCutout,
+    baijiu: IMG.baijiuCutout
+  };
+  const w = sessionData?.wine;
+  if (w?.wineType) {
+    const t = w.wineType;
+    if (/威士忌|whisky/i.test(t)) return cutouts.whisky;
+    if (/红|葡萄酒|wine/i.test(t)) return cutouts.red;
+    if (/白|酱香|白酒/i.test(t)) return cutouts.baijiu;
+  }
+  const sample = selectedSample || 'whisky';
+  return cutouts[sample] || cutouts.whisky;
+}
+
+const DISH_IMAGES = {
+  '盐焗花生米': 'dishPeanuts',
+  '卤牛肉切片': 'dishBeef'
+};
+
+function showScannerPreview(src, mode) {
+  const img = document.getElementById('previewImg');
+  const placeholder = document.getElementById('scannerPlaceholder');
+  const focus = document.getElementById('scannerFocus');
+  if (!src) {
+    img.classList.add('hidden');
+    placeholder.classList.remove('hidden');
+    focus.classList.remove('hidden');
+    return;
+  }
+  img.src = src;
+  img.classList.remove('hidden');
+  placeholder.classList.add('hidden');
+  focus.classList.add('hidden');
+  if (mode === 'upload') {
+    img.className = 'w-full h-full object-cover opacity-90 transition-all duration-500';
+  } else {
+    img.className = 'w-full h-full object-cover opacity-50 grayscale group-hover:grayscale-0 transition-all duration-500';
+  }
+}
+
+function updateChrome(screen) {
+  const app = document.getElementById('app');
+  const header = document.getElementById('appHeader');
+  const stepWrap = document.getElementById('stepBarWrap');
+  const nav = document.getElementById('bottomNav');
+  const isDark = DARK_SCREENS.includes(screen);
+
+  app.className = `w-full max-w-[390px] min-h-screen relative shadow-2xl overflow-hidden ${isDark ? 'bg-black' : 'bg-white'}`;
+  header.className = `sticky top-0 z-50 flex justify-between items-center px-5 py-4 backdrop-blur border-b ${isDark ? 'bg-black/95 border-white/5' : 'bg-white/95 border-neutral-100'}`;
+  document.getElementById('headerTitle').textContent = '金灵酒鬼';
+  document.getElementById('headerTitle').className = `font-serif text-base tracking-wide ${isDark ? 'text-white/90' : 'text-black/80'}`;
+  document.getElementById('headerLeftIcon').textContent = screen === 'upload' ? 'menu' : 'arrow_back';
+  document.getElementById('headerRightIcon').textContent = screen === 'upload' ? 'account_circle' : 'share';
+  document.getElementById('headerLeftIcon').parentElement.className = isDark ? 'text-white/70 hover:text-white' : 'text-black/50 hover:text-black';
+  document.getElementById('headerRightIcon').parentElement.className = isDark ? 'text-white/70 hover:text-white' : 'text-black/50 hover:text-black';
+  document.getElementById('headerRightIcon').parentElement.onclick = screen === 'upload' ? null : copyShare;
+
+  stepWrap.style.display = isDark && screen !== 'loading' ? 'block' : 'none';
+  nav.style.display = screen === 'loading' ? 'none' : 'flex';
+  updateNav(screen === 'upload' ? 'upload' : screen);
+}
+
+function updateNav(active) {
+  const activeNav = active === 'upload' ? 'upload' : active;
+  document.querySelectorAll('.nav-item').forEach(btn => {
+    const on = btn.dataset.nav === activeNav;
+    btn.className = `nav-item flex flex-col items-center ${on ? 'text-brand-red' : 'text-white/40'}`;
+    const icon = btn.querySelector('.nav-icon');
+    const label = btn.querySelector('.nav-label');
+    if (icon) {
+      icon.className = `nav-icon material-symbols-outlined text-xl mb-0.5${on ? '' : ''}`;
+      icon.style.fontVariationSettings = on ? "'FILL' 1" : "'FILL' 0";
+    }
+    if (label) label.className = `nav-label text-[10px]${on ? ' font-semibold' : ''}`;
+  });
+}
+
+function handleBack() {
+  const screens = ['upload','wine','cocktail','food','share','bars'];
+  const cur = screens.find(s => document.getElementById('screen-' + s)?.classList.contains('active'));
+  const map = { upload: null, wine: 'upload', cocktail: 'wine', food: 'cocktail', share: 'food', bars: 'share' };
+  if (cur && map[cur]) navTo(map[cur]);
+}
+
+function navTo(screen) {
+  if (screen === 'wine' && !sessionData && currentStep < 2) { startRecognize(); return; }
+  if (['cocktail','food','share'].includes(screen) && !sessionData) {
+    alert('请先完成识酒'); return;
+  }
+  if (screen === 'cocktail') { renderCocktail(); goTo('cocktail'); }
+  else if (screen === 'food') { renderFood(); goTo('food'); }
+  else if (screen === 'share') { renderShare(); goTo('share'); }
+  else if (screen === 'bars') { renderBars(); goTo('bars'); }
+  else goTo(screen);
+}
+
+function openCamera() { document.getElementById('cameraInput').click(); }
+function openAlbum() { document.getElementById('albumInput').click(); }
+
+function handleImageFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  selectedSample = null;
+  renderSamples();
+  const reader = new FileReader();
+  reader.onload = ev => {
+    uploadedImage = ev.target.result;
+    showScannerPreview(uploadedImage, 'upload');
+    useRealAI = true;
+    updateApiStatus(apiOnline ? '✓ 已选照片，将调用 AI 识酒' : '✓ 已选照片，但 AI 未连接将用 Mock');
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+}
+
+function renderStepBar() {
+  document.getElementById('stepBar').innerHTML = STEPS.map((_, i) => {
+    let cls = 'step-dot';
+    if (i < currentStep) cls += ' done';
+    if (i === currentStep) cls += ' current';
+    return `<div class="${cls}"></div>`;
+  }).join('');
+}
+
+function renderSamples() {
+  document.getElementById('sampleList').innerHTML = SAMPLES.map(s => `
+    <button type="button" onclick="selectSample('${s.id}')" class="flex-shrink-0 w-32 text-left">
+      <div class="w-32 aspect-square rounded-xl overflow-hidden shadow-2xl mb-2 ${s.id === selectedSample ? 'ring-2 ring-brand-red' : ''}">
+        <img src="${s.image}" alt="${s.name}" data-file="${s.image.split('/').pop()}" class="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-500" loading="lazy" onerror="imgFallback(this, this.dataset.file)" />
+      </div>
+      <p class="text-xs text-white/80 font-medium truncate">${s.name}</p>
+      <p class="text-[10px] text-white/40">${s.label}</p>
+    </button>
+  `).join('');
+}
+
+function selectSample(id) {
+  selectedSample = id;
+  useRealAI = apiOnline;
+  uploadedImage = null;
+  showScannerPreview(getSampleImage(id), 'sample');
+  const name = SAMPLES.find(s => s.id === id).name;
+  updateApiStatus(apiOnline ? `✓ 已选示例：${name} · 将调用 AI 识酒` : `✓ 已选示例：${name} · 离线 Mock`);
+  renderSamples();
+}
+
+function goTo(screen) {
+  const idx = STEPS.indexOf(screen);
+  if (idx >= 0) currentStep = idx;
+  showScreen(screen);
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+  renderStepBar();
+  updateChrome(id);
+}
+
+async function goToCocktail() {
+  if (sessionData?.wine && !sessionData.cocktail && sessionData.aiRecognized) {
+    showScreen('loading');
+    document.getElementById('loadingText').textContent = '老金正在调酒方子...';
+    try {
+      const planData = await generatePlanWithAI(sessionData.wine);
+      sessionData = { ...sessionData, cocktail: planData.cocktail, tiers: planData.tiers, dishAnalysis: planData.dishAnalysis || {} };
+    } catch (err) {
+      alert(`生成方案失败：${err.message}`);
+      return;
+    }
+  }
+  renderCocktail();
+  goTo('cocktail');
+}
+function goToFood() { renderFood(); goTo('food'); }
+function goToShare() { renderShare(); goTo('share'); }
+function goToBars() { renderBars(); goTo('bars'); }
+
+async function startRecognize() {
+  if (!uploadedImage && !selectedSample) { alert('请先拍照或选择示例酒款'); return; }
+
+  const shouldUseAI = apiOnline && (uploadedImage || useRealAI || selectedSample);
+  showScreen('loading');
+  const texts = shouldUseAI
+    ? ['老金正在瞅这瓶酒...', '酒标、酒体颜色分析中...', '口感气味心里有数了...', '调酒方子跟下酒菜一并琢磨...']
+    : ['加载示例酒款...', '老金点评准备中...'];
+  let i = 0;
+  const interval = setInterval(() => {
+    document.getElementById('loadingText').textContent = texts[i % texts.length];
+    document.querySelectorAll('#loadingDots div').forEach((d, j) => {
+      d.className = `w-1.5 h-1.5 rounded-full ${j === i % 3 ? 'bg-brand-red' : 'bg-white/20'}`;
+    });
+    i++;
+  }, 900);
+
+  const fallbackKey = selectedSample || 'whisky';
+  try {
+    if (shouldUseAI) {
+      const imageBase64 = await getImageForRecognition();
+      const wine = await recognizeWithAI(imageBase64);
+      selectedSample = inferSampleIdFromWine(wine);
+      const planData = await generatePlanWithAI(wine);
+      sessionData = {
+        wine,
+        cocktail: planData.cocktail,
+        tiers: planData.tiers,
+        dishAnalysis: planData.dishAnalysis || MOCK[fallbackKey]?.dishAnalysis || {},
+        aiRecognized: true
+      };
+    } else {
+      await new Promise(r => setTimeout(r, 1200));
+      sessionData = { ...MOCK[fallbackKey], aiRecognized: false };
+    }
+  } catch (err) {
+    console.error(err);
+    sessionData = { ...MOCK[fallbackKey], aiRecognized: false };
+    alert(`AI 识酒暂时不可用，已切换示例数据。\n${err.message}`);
+  } finally {
+    clearInterval(interval);
+    renderWine();
+    currentStep = 2;
+    goTo('wine');
+  }
+}
+
+function getData() { return sessionData || MOCK[selectedSample || 'whisky']; }
+
+function renderWine() {
+  const w = getData().wine;
+  const sample = SAMPLES.find(s => s.id === selectedSample);
+  const cutoutEl = document.getElementById('wineBottleImg');
+  cutoutEl.src = getWineCutoutUrl();
+  cutoutEl.alt = w.wineName;
+  const cutoutFiles = { whisky: '麦卡伦.png', red: '红酒.png', baijiu: '白酒.png' };
+  cutoutEl.onerror = function() { imgFallback(this, cutoutFiles[selectedSample] || '麦卡伦.png'); };
+  document.getElementById('wineName').textContent = w.wineName;
+  document.getElementById('wineDecorText').textContent = w.brand || sample?.decor || 'Wine';
+
+  const tags = [w.wineType, w.origin?.split('·')[0]?.trim(), w.vintage].filter(Boolean);
+  if (getData().aiRecognized) tags.push('AI实拍');
+  document.getElementById('wineTags').innerHTML = tags.map((t, i) =>
+    `<span class="text-[11px] px-2.5 py-1 rounded-full ${i === tags.length - 1 && t.includes('年') ? 'bg-black text-white' : 'bg-neutral-100 text-neutral-600'}">${t}</span>`
+  ).join('');
+
+  const attrs = [
+    { label: '产地', value: w.origin?.split('·')[0]?.trim() || w.origin, dark: false },
+    { label: '酒精度', value: w.abv, dark: false },
+    { label: '颜色', value: w.color, dark: false },
+    { label: '年份', value: w.vintage, dark: true }
+  ];
+  document.getElementById('wineAttrCards').innerHTML = attrs.map(a =>
+    `<div class="attr-card flex flex-col items-center justify-center shadow-sm ${a.dark ? 'bg-black text-white' : 'bg-neutral-50 text-black'}">
+      <span class="text-[10px] opacity-60 mb-1">${a.label}</span>
+      <span class="text-xs font-semibold text-center px-1 leading-tight">${a.value}</span>
+    </div>`
+  ).join('');
+
+  document.getElementById('priceRange').textContent = `¥${w.referencePrice.min} – ¥${w.referencePrice.max}`;
+  document.getElementById('priceNote').textContent = w.referencePrice.note;
+  document.getElementById('bartenderTake').textContent = w.bartenderTake || '这瓶有点意思，先让叔给你说道说道。';
+  document.getElementById('tasteSummary').textContent = w.taste.summary;
+  const primary = (w.aroma?.primary || []).join('、');
+  document.getElementById('aromaSummary').textContent = (w.aroma?.summary || '') + (primary ? `（主香：${primary}）` : '');
+  document.getElementById('evidenceList').innerHTML = (w.visibleEvidence || ['基于上传酒瓶照片分析']).map(e => `<p>· ${e}</p>`).join('');
+}
+
+function renderCocktail() {
+  const c = getData().cocktail;
+  const wineType = getData().wine?.wineType || '';
+  const heroSrc = COCKTAIL_HERO[c.planName]
+    || (/威士忌|whisky/i.test(wineType) ? IMG.cocktailAmber : null)
+    || (/红|葡萄酒/i.test(wineType) ? IMG.redCutout : null)
+    || (/白|酱香/i.test(wineType) ? IMG.baijiuCutout : null)
+    || IMG.cocktailAmber;
+  const heroEl = document.getElementById('cocktailHeroImg');
+  heroEl.src = heroSrc;
+  heroEl.onerror = function() { imgFallback(this, '琥珀暖冬.png'); };
+  document.getElementById('planName').textContent = c.planName;
+  document.getElementById('planMeta').textContent = `${c.style || '鸡尾酒'} · ${c.difficulty || '入门'} · 约¥${c.totalCost}/杯`;
+  document.getElementById('flavorNote').textContent = (c.planSubtitle ? c.planSubtitle + ' — ' : '') + (c.flavorNote || '');
+  document.getElementById('totalCost').textContent = `¥${c.totalCost}`;
+  document.getElementById('totalCostBar').textContent = `合计约 ¥${c.totalCost}`;
+  document.getElementById('materialsList').innerHTML = c.materials.map(m =>
+    `<div class="flex justify-between items-center py-3 text-sm"><span><strong>${m.name}</strong> <span class="text-neutral-400">${m.amount}</span></span><span class="text-neutral-500">¥${m.subtotal}</span></div>`
+  ).join('');
+  document.getElementById('stepsList').innerHTML = c.steps.map((s, i) =>
+    `<li class="flex gap-3 text-sm"><span class="w-7 h-7 rounded-full bg-black text-white text-xs flex items-center justify-center flex-shrink-0">${String(i+1).padStart(2,'0')}</span><span class="text-neutral-700 leading-relaxed pt-1">${s}</span></li>`
+  ).join('');
+  document.getElementById('toolsList').innerHTML = c.tools.map(t =>
+    `<span class="text-xs bg-neutral-100 px-3 py-2 rounded-2xl">${t}</span>`
+  ).join('');
+}
+
+function renderFood() {
+  const tiers = getData().tiers;
+  document.getElementById('tierTabs').innerHTML = Object.entries(tiers).map(([k,v]) =>
+    `<button type="button" onclick="switchTier('${k}')" class="flex-1 py-2.5 rounded-xl text-xs font-semibold transition-colors ${k===currentTier?'bg-black text-white':'bg-neutral-100 text-black'}">${v.label}</button>`
+  ).join('');
+  renderDishes();
+  analyzeDish();
+}
+
+function switchTier(k) { currentTier = k; renderFood(); }
+
+function renderDishes() {
+  const dishes = getData().tiers[currentTier].dishes;
+  document.getElementById('dishList').innerHTML = dishes.map(d => {
+    const imgKey = DISH_IMAGES[d.name];
+    const thumb = imgKey && IMG[imgKey]
+      ? `<img src="${IMG[imgKey]}" alt="${d.name}" class="w-full h-full object-cover" onerror="imgFallback(this, '${imgKey === 'dishPeanuts' ? '酒鬼花生.png' : '卤切牛肉.png'}')" />`
+      : '<span class="text-2xl">🍽</span>';
+    return `<div class="bg-white rounded-[20px] p-4 shadow-[0_4px_16px_rgba(0,0,0,0.06)] flex gap-3">
+      <div class="w-14 h-14 rounded-2xl bg-neutral-100 flex items-center justify-center overflow-hidden flex-shrink-0">${thumb}</div>
+      <div class="flex-1 min-w-0">
+        <p class="font-serif text-base font-semibold mb-1">${d.name}</p>
+        <p class="text-xs text-neutral-500 leading-relaxed">${d.reason}</p>
+        <p class="text-[11px] text-neutral-400 mt-2">${d.calories} · ${d.cost}</p>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderDishAnalysis(a) {
+  if (!a || !document.getElementById('dishAnalysis')) return;
+  const ratingColors = { good: 'bg-emerald-500/20 text-emerald-300', ok: 'bg-amber-500/20 text-amber-300', bad: 'bg-red-500/20 text-red-300' };
+  const recipe = a.improvedRecipe || { name: '老金改良版', steps: [] };
+  document.getElementById('dishAnalysis').innerHTML = `
+    <span class="inline-block text-xs font-semibold px-2.5 py-1 rounded-lg mb-3 ${ratingColors[a.ratingClass] || ratingColors.ok}">${a.rating}</span>
+    <p class="text-sm text-white/90 leading-relaxed mb-3">${a.analysis}</p>
+    <div class="space-y-2 text-xs text-white/60">
+      <p><strong class="text-white/80">口感搭配</strong> ${a.tastePairing || '—'}</p>
+      <p><strong class="text-white/80">效用</strong> ${a.utility || '—'}</p>
+      <p><strong class="text-white/80">热量</strong> ${a.calories || '—'}</p>
+    </div>
+    ${recipe.steps?.length ? `<div class="bg-neutral-900 rounded-xl p-3 mt-3">
+      <p class="text-sm text-white font-medium mb-2">改良菜谱：${recipe.name}</p>
+      <ol class="text-xs text-white/70 space-y-1 list-decimal list-inside">${recipe.steps.map(s=>`<li>${s}</li>`).join('')}</ol>
+    </div>` : ''}
+    ${a.swapSuggestion ? `<p class="text-xs text-white/50 mt-3">💡 ${a.swapSuggestion}</p>` : ''}
+  `;
+}
+
+async function analyzeDish() {
+  const dish = document.getElementById('customDish')?.value.trim() || '麻辣小龙虾';
+  const box = document.getElementById('dishAnalysis');
+  if (!box) return;
+  box.innerHTML = '<p class="text-sm text-white/60">老金正在琢磨这道菜...</p>';
+
+  try {
+    let a;
+    if (apiOnline && sessionData?.wine) {
+      a = await analyzeDishWithAI(dish);
+      if (!sessionData.dishAnalysis) sessionData.dishAnalysis = {};
+      sessionData.dishAnalysis[dish] = a;
+    } else {
+      const analysis = getData().dishAnalysis || {};
+      a = analysis[dish] || analysis['麻辣小龙虾'] || Object.values(analysis)[0];
+    }
+    renderDishAnalysis(a);
+  } catch (err) {
+    const analysis = getData().dishAnalysis || {};
+    const a = analysis[dish] || analysis['麻辣小龙虾'] || Object.values(analysis)[0];
+    if (a) renderDishAnalysis(a);
+    else box.innerHTML = `<p class="text-sm text-red-300">点评失败：${err.message}</p>`;
+  }
+}
+
+function renderShare() {
+  const w = getData().wine;
+  const c = getData().cocktail;
+  const tier = getData().tiers[currentTier];
+  document.getElementById('sharePreview').innerHTML = `
+    <div class="flex justify-between items-start mb-4">
+      <span class="font-serif text-sm">金灵酒鬼</span>
+      <span class="material-symbols-outlined text-neutral-300">wine_bar</span>
+    </div>
+    <div class="relative h-40 rounded-2xl overflow-hidden mb-5 -mx-1">
+      <img src="${IMG.party}" alt="今晚酒局" class="w-full h-full object-cover" />
+      <div class="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent"></div>
+      <p class="absolute bottom-4 left-4 font-serif text-white text-xl">今晚酒局</p>
+    </div>
+    <div class="w-12 h-px bg-black/20 mx-auto mb-5"></div>
+    <div class="space-y-3 text-sm text-neutral-700">
+      <p><span class="text-neutral-400">酒款</span> ${w.wineName}</p>
+      <p><span class="text-neutral-400">调酒</span> ${c.planName}（约¥${c.totalCost}/杯）</p>
+      <p><span class="text-neutral-400">下酒菜</span> ${tier.label}</p>
+      <p><span class="text-neutral-400">预估人均</span> <span class="font-serif text-xl text-brand-red">¥${Math.round(c.totalCost + 80)} – ¥${Math.round(c.totalCost + 180)}</span></p>
+    </div>
+    <p class="text-[10px] text-neutral-400 text-center mt-6">适量饮酒 · 参考价仅供参考</p>
+    <p class="text-sm text-neutral-500 text-center mt-4 italic">「${w.bartenderTake?.slice(0, 30) || '今晚不见不散'}…」— 老金</p>
+  `;
+}
+
+function copyShare() {
+  const w = getData().wine;
+  const c = getData().cocktail;
+  const text = `【金灵酒鬼】今晚酒局\n🍾 ${w.wineName}\n🍸 ${c.planName}\n老金说：一起来改酒单和菜单！\n链接：jinling.bar/party/demo123`;
+  navigator.clipboard?.writeText(text).then(() => alert('邀请文案已复制！')).catch(() => alert(text));
+}
+
+function renderBars() {
+  if (!IMG.barWhiskyInterior) buildImgConfig();
+  document.getElementById('barsList').innerHTML = getBars().map((b, i) =>
+    `<article class="bg-white rounded-[20px] shadow-[0_4px_16px_rgba(0,0,0,0.06)] overflow-hidden ${i===0?'border-l-[3px] border-brand-red':''}">
+      <div class="relative h-28 bg-neutral-100">
+        <img src="${b.interior}" alt="${b.name}" data-file="${b.imgFile}" data-fallback="${b.imgFallback || ''}" class="w-full h-full object-cover" onerror="imgFallback(this, this.dataset.fallback || this.dataset.file)" />
+        ${i===0?'<span class="absolute top-2.5 left-2.5 text-[10px] bg-brand-red text-white px-2 py-0.5 rounded-full font-semibold">最近</span>':''}
+      </div>
+      <div class="p-4">
+        <h3 class="font-serif font-bold text-base text-black mb-1">${b.name}</h3>
+        <p class="text-xs text-neutral-400 mb-2">${b.distance} · ${b.avgPrice} · ★${b.rating}</p>
+        <span class="inline-block text-[11px] bg-neutral-100 text-neutral-600 px-2.5 py-1 rounded-full">${b.specialty}</span>
+        <p class="text-[13px] text-neutral-600 mt-2.5 leading-relaxed">${b.reason}</p>
+        <div class="flex gap-2 mt-3">
+          <button type="button" class="min-w-[72px] h-8 px-3 rounded-lg border border-black text-xs text-black">导航</button>
+          <button type="button" class="min-w-[72px] h-8 px-3 rounded-lg border border-black text-xs text-black">电话</button>
+        </div>
+      </div>
+    </article>`
+  ).join('');
+}
+
+function finishDemo() {
+  alert('Demo 演示完成！可返回主页重新体验。');
+  sessionData = null;
+  currentStep = 0;
+  selectedSample = 'whisky';
+  uploadedImage = null;
+  useRealAI = false;
+  renderSamples();
+  showScannerPreview(getSampleImage('whisky'), 'sample');
+  document.getElementById('recognizeMode').classList.add('hidden');
+  goTo('upload');
+}
+
+init();
+</script>
+</body>
+</html>
