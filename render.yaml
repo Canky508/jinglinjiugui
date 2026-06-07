@@ -14,6 +14,12 @@ services:
         sync: false
       - key: VOLC_VISION_MODEL_ID
         sync: false
+      - key: VOLC_REASON_MODEL_ID
+        sync: false
+      - key: VOLC_IMAGE_MODEL_ID
+        sync: false
+      - key: VOLC_IMAGE_SIZE
+        value: "512x512"
       - key: VOLC_TEXT_MODEL_ID
         sync: false
       - key: VOLC_MODEL_ID
